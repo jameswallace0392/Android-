@@ -1,0 +1,40 @@
+name: Inspect OTA kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      ota_url:
+        description: "Full OTA zip URL"
+        required: true
+        default: "https://dl.google.com/dl/android/aosp/rango-ota-cp3a.261005.005-4d0f56f9.zip"
+      ota_sha256:
+        description: "Full SHA-256 from developers.google.com/android/ota (optional)"
+        required: false
+        default: ""
+
+jobs:
+  inspect:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run inspect_ota_kernel_mac.sh
+        env:
+          OTA_URL: ${{ inputs.ota_url }}
+          OTA_SHA256: ${{ inputs.ota_sha256 }}
+          DOWNLOAD_DIR: ${{ runner.temp }}/ota
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          chmod +x inspect_ota_kernel_mac.sh
+          ./inspect_ota_kernel_mac.sh "$OTA_URL" | tee result.txt
+
+      - name: Show kernel version in run summary
+        if: always()
+        run: |
+          {
+            echo '### Kernel version'
+            echo '```'
+            grep -E 'Linux version' result.txt || echo 'Not found - see job log'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
